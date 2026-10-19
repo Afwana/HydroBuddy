@@ -1,0 +1,61 @@
+{
+  "name": "hydrobuddy",
+  "version": "0.1.0",
+  "description": "Animated desktop hydration companion",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/schedule.test.js && node test/merge.test.js",
+    "dist": "electron-builder --win",
+    "pack": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.hydrobuddy.app",
+    "productName": "HydroBuddy",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "**/*",
+      "!test/**",
+      "!server/**",
+      "!dist/**",
+      "!characters/**",
+      "!build/**",
+      "!README.md"
+    ],
+    "extraResources": [
+      {
+        "from": "characters",
+        "to": "characters"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "HydroBuddy",
+      "runAfterFinish": true,
+      "artifactName": "HydroBuddy-Setup-${version}.${ext}"
+    }
+  },
+  "productName": "HydroBuddy",
+  "author": "HydroBuddy"
+}

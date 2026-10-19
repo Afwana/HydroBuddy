@@ -1,0 +1,131 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>HydroBuddy</title>
+<style>
+  :root{--bg:#f4f8fc;--card:#fff;--fg:#12304a;--mut:#6b8196;--pri:#1e88e5;--line:#e1eaf2}
+  @media (prefers-color-scheme:dark){:root{--bg:#0e1a26;--card:#16273a;--fg:#e6f1fb;--mut:#8fa6bb;--line:#243a52}}
+  *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:15px "Segoe UI",system-ui,sans-serif}
+  header{display:flex;align-items:center;gap:20px;padding:14px 28px;background:var(--card);border-bottom:1px solid var(--line)}
+  header h1{font-size:20px;margin:0}nav{display:flex;gap:4px;margin-left:auto}
+  nav button{background:none;border:0;color:var(--mut);font:600 14px "Segoe UI",system-ui,sans-serif;padding:8px 14px;border-radius:8px;cursor:pointer}
+  nav button.on{background:var(--pri);color:#fff}
+  main{max-width:860px;margin:22px auto;padding:0 20px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px}
+  .row{display:flex;gap:20px;flex-wrap:wrap;align-items:center}.grow{flex:1}.mut{color:var(--mut)}
+  button.b{background:var(--pri);color:#fff;border:0;border-radius:9px;padding:9px 14px;font:600 14px "Segoe UI",system-ui,sans-serif;cursor:pointer}button.b.g{background:var(--line);color:var(--fg)}
+  .ring{width:150px;height:150px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(var(--pri) calc(var(--p)*1%),var(--line) 0)}
+  .ring div{width:116px;height:116px;border-radius:50%;background:var(--card);display:grid;place-items:center;text-align:center;font-weight:700}
+  table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid var(--line);text-align:left}
+  .bars{display:flex;gap:12px;align-items:flex-end;height:170px}.bar{flex:1;text-align:center;font-size:12px}.bar i{display:block;background:var(--pri);border-radius:6px 6px 0 0;min-height:2px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}.stat{background:var(--bg);border-radius:10px;padding:12px}.stat b{font-size:24px;display:block}
+  label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mut)}input,select,textarea{font:15px "Segoe UI",system-ui,sans-serif;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--fg)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px}.hide{display:none}
+  .welcome{background:linear-gradient(135deg,#1e88e5,#42a5f5);color:#fff}
+</style></head><body>
+<header><h1>💧 HydroBuddy</h1><nav id="nav"></nav></header>
+<main id="main"></main>
+<script>
+const $ = (s, r = document) => r.querySelector(s), tabs = ['Home', 'History', 'Insights', 'Settings', 'Account'];
+let tab = 'Home', st, data, chars = { list: [], folder: '' };
+const key = ts => new Date(ts).toLocaleDateString('en-CA'), time = ts => new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+const sum = a => a.reduce((s, l) => s + l.amount, 0);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+async function refresh() { st = await hb.getState(); data = await hb.getData(); chars = await hb.listCharacters(); render(); }
+hb.onState(refresh);
+function render() {
+  $('#nav').innerHTML = tabs.map(t => `<button class="${t === tab ? 'on' : ''}" onclick="tab='${t}';render()">${t}</button>`).join('');
+  $('#main').innerHTML = (st.onboarded ? '' : welcome()) + views[tab]();
+  if (views[tab].after) views[tab].after();
+}
+const views = {
+  Home() {
+    const { total, logs } = st.today, goal = st.settings.goal, p = Math.min(100, total / goal * 100);
+    const paused = st.pausedUntil && Date.now() < st.pausedUntil;
+    const next = paused ? 'Paused' : st.skipToday ? 'Off for today' : st.nextDue ? time(st.nextDue) : '—';
+    return `<div class="card row"><div class="ring" style="--p:${p}"><div>${Math.round(p)}%<small class="mut">${total} / ${goal} ml</small></div></div>
+      <div class="grow"><h2 style="margin:0 0 6px">Today's intake</h2><p class="mut">Next reminder: <b>${next}</b></p>
+      <div class="row" style="gap:8px">${[150, 250, 500].map(a => `<button class="b" onclick="hb.addLog(${a})">+${a} ml</button>`).join('')}
+      <button class="b g" onclick="const v=+prompt('Amount in ml');v>0&&hb.addLog(v)">Custom</button></div></div></div>
+    <div class="card"><div class="row"><div class="grow"><b>Buddy controls</b></div>
+      <button class="b" onclick="hb.testBuddy()">👋 Test the buddy</button>
+      ${paused ? `<button class="b g" onclick="hb.pause(null)">Resume reminders</button>` : `<button class="b g" onclick="hb.pause(60)">Pause 1 hour</button><button class="b g" onclick="hb.skipToday(${!st.skipToday})">${st.skipToday ? 'Enable today' : 'Off for today'}</button>`}</div></div>
+    <div class="card"><b>Recent drinks</b>${table(logs.slice().reverse().slice(0, 5))}</div>`;
+  },
+  History() {
+    const days = {}; data.logs.forEach(l => (days[key(l.ts)] ||= []).push(l));
+    const ks = Object.keys(days).sort().reverse();
+    return `<div class="card"><b>Drink history</b>${ks.length ? '' : '<p class="mut">No drinks logged yet.</p>'}</div>` +
+      ks.map(k => `<div class="card"><div class="row"><b class="grow">${k}</b><span class="mut">${sum(days[k])} ml</span></div>${table(days[k].slice().reverse(), true)}</div>`).join('');
+  },
+  Insights() {
+    const today = new Date(), rows = [];
+    for (let i = 6; i >= 0; i--) { const d = new Date(today); d.setDate(d.getDate() - i); const k = key(d); rows.push({ k, d, t: sum(data.logs.filter(l => key(l.ts) === k)) }); }
+    const max = Math.max(st.settings.goal, ...rows.map(r => r.t));
+    const totals = {}; data.logs.forEach(l => totals[key(l.ts)] = (totals[key(l.ts)] || 0) + l.amount);
+    let goalStreak = 0, logStreak = 0; const d = new Date();
+    for (let i = 0; i < 365; i++, d.setDate(d.getDate() - 1)) { const t = totals[key(d)] || 0; if (t >= st.settings.goal) goalStreak++; else if (i > 0) break; }
+    const d2 = new Date(); for (let i = 0; i < 365; i++, d2.setDate(d2.getDate() - 1)) { if (totals[key(d2)]) logStreak++; else if (i > 0) break; }
+    const wk = data.events.filter(e => Date.now() - e.ts < 7 * 864e5), c = o => wk.filter(e => e.outcome === o).length, resp = wk.length - c('notified');
+    return `<div class="card"><b>Last 7 days</b><div class="bars" style="margin-top:14px">${rows.map(r => `<div class="bar"><small>${r.t}</small><i style="height:${r.t / max * 130}px;opacity:${r.t >= st.settings.goal ? 1 : .55}"></i>${r.d.toLocaleDateString([], { weekday: 'short' })}</div>`).join('')}</div></div>
+    <div class="card stats"><div class="stat"><b>${goalStreak}🔥</b>day goal streak</div><div class="stat"><b>${logStreak}</b>day logging streak</div>
+      <div class="stat"><b>${resp ? Math.round(c('drink') / resp * 100) : 0}%</b>reminders → drink</div>
+      <div class="stat"><b>${c('drink')}</b>drinks confirmed</div><div class="stat"><b>${c('snooze')}</b>snoozed</div><div class="stat"><b>${c('dismiss') + c('missed')}</b>dismissed / missed</div></div>`;
+  },
+  Account() {
+    const c = st.cloud, label = { idle: 'Not synced yet', syncing: 'Syncing…', ok: 'Up to date', offline: 'Offline — will retry automatically', auth: 'Please log in again' }[c.status] || c.status;
+    if (c.loggedIn) return `<div class="card"><b>Cloud account</b>
+      <p>Signed in as <b>${esc(c.email)}</b><br><span class="mut">Server: ${esc(c.url)}</span></p>
+      <p>Status: <b>${label}</b>${c.error ? ` <span class="mut">(${esc(c.error)})</span>` : ''}<br><span class="mut">Last sync: ${c.last ? new Date(c.last).toLocaleString() : 'never'}</span></p>
+      <div class="row" style="gap:8px"><button class="b" onclick="hb.cloudSync()">Sync now</button><button class="b g" onclick="if(confirm('Log out? Your data stays on this PC and in your account.'))hb.cloudLogout()">Log out</button></div>
+      <p class="mut">Water logs, reminder history and settings sync across your devices. The app works offline and syncs when it can.</p></div>`;
+    return `<div class="card"><b>Cloud account (optional)</b><p class="mut">Sign in to back up your data and sync it between PCs. HydroBuddy works fully without an account.</p>
+      <div class="grid"><label>Server URL<input id="c-url" value="${esc(c.url || 'http://localhost:4000')}"></label>
+      <label>Name (for new accounts)<input id="c-name"></label><label>Email<input id="c-email" type="email" autocomplete="username"></label>
+      <label>Password (8+ characters)<input id="c-pass" type="password" autocomplete="current-password"></label></div>
+      <p class="row" style="gap:8px"><button class="b" onclick="cloudGo(false)">Log in</button><button class="b g" onclick="cloudGo(true)">Create account</button><span id="c-msg" class="mut"></span></p>
+      <p class="mut">Remote servers must use https://. Plain http is only allowed for localhost.</p></div>`;
+  },
+  Settings() {
+    const s = st.settings, f = (k, label, type = 'text', extra = '') => `<label>${label}<input data-k="${k}" type="${type}" value="${esc(s[k])}" ${extra}></label>`;
+    const sel = (k, label, opts) => `<label>${label}<select data-k="${k}">${opts.map(([v, t]) => `<option value="${v}" ${s[k] == v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>`;
+    const chk = (k, label) => `<label style="flex-direction:row;align-items:center;gap:8px"><input data-k="${k}" type="checkbox" ${s[k] ? 'checked' : ''}> ${label}</label>`;
+    return `<div class="card"><b>Reminders</b><div class="grid" style="margin-top:12px">
+      ${f('name', 'Your name (for greetings)')}${f('interval', 'Reminder interval (min)', 'number', 'min=5')}${f('snooze', 'Snooze (min)', 'number', 'min=1')}
+      ${f('workStart', 'Work starts', 'time')}${f('workEnd', 'Work ends', 'time')}${f('goal', 'Daily goal (ml)', 'number', 'min=500')}${f('defaultAmount', 'Default sip (ml)', 'number', 'min=50')}${f('timeout', 'Buddy waits (sec)', 'number', 'min=10')}
+      ${sel('scheduleMode', 'Schedule', [['relative', 'After last reminder'], ['fixed', 'Fixed clock times']])}${sel('dismissPolicy', 'When I dismiss (✕)', [['interval', 'Wait for next interval'], ['snooze', 'Snooze']])}</div></div>
+    <div class="card"><b>Buddy & appearance</b><div class="grid" style="margin-top:12px">
+      ${sel('character', 'Character', [['striker', 'Football star (lifts the bottle)'], ['drop', 'Water drop'], ...chars.list.map(n => ['custom:' + n, n + ' (custom)'])])}${sel('color', 'Drop colour', [[0, 'Aqua'], [90, 'Green'], [180, 'Purple'], [270, 'Pink'], [330, 'Orange']])}${sel('position', 'Screen position', [['bottom', 'Bottom'], ['middle', 'Middle'], ['top', 'Top']])}
+      ${f('size', 'Size (0.7–1.6)', 'number', 'min=0.7 max=1.6 step=0.1')}${f('speed', 'Animation speed (0.6–1.6)', 'number', 'min=0.6 max=1.6 step=0.1')}
+      ${sel('celebration', 'Celebration', [['bottle', 'Champion bottle lift'], ['siu', 'Siuuu pose']])}${sel('celebrationSound', 'Celebration sound', [['fanfare', 'Fanfare'], ['siu', 'Siuuu! (synth)'], ['chime', 'Chime']])}${sel('theme', 'Theme', [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']])}
+      ${chk('sound', 'Sound effects')}${chk('buddyEnabled', 'Show animated buddy')}${chk('autoLaunch', 'Start when I log in')}${chk('startHidden', 'Start minimized to the tray')}</div>
+      <label style="margin-top:14px">Custom reminder messages (one per line, use {name})<textarea data-k="messages" rows="4">${esc(s.messages)}</textarea></label>
+      <p><button class="b" onclick="hb.testBuddy()">👋 Test the buddy</button></p></div>
+    <div class="card"><b>Custom characters</b><p class="mut">Create a folder per character containing one image per pose, then pick it above. Required: <code>idle.png</code>. Optional: <code>run</code>, <code>jump</code>, <code>sad</code>, <code>celebrate</code> (lifting the bottle), <code>wave</code>, <code>happy</code> (.png / .webp / .gif, transparent background, roughly 340×500).</p>
+    <button class="b g" onclick="hb.openCharactersFolder()">Open characters folder</button> <span class="mut">${esc(chars.folder)}</span></div>`;
+  }
+};
+views.Settings.after = () => document.querySelectorAll('[data-k]').forEach(el => el.onchange = () => {
+  let v = el.type === 'checkbox' ? el.checked : el.type === 'number' ? +el.value : el.value;
+  if (el.dataset.k === 'color') v = +v;
+  if (el.type === 'time' && !v) return;
+  const p = { [el.dataset.k]: v }, ns = { ...st.settings, ...p };
+  if (ns.workStart >= ns.workEnd) return alert('Work end must be after work start.');
+  hb.setSettings(p);
+});
+async function cloudGo(register) {
+  const v = id => document.getElementById(id).value, msg = document.getElementById('c-msg');
+  msg.textContent = 'Working…';
+  const r = await hb.cloudAuth({ url: v('c-url'), email: v('c-email'), password: v('c-pass'), name: v('c-name'), register });
+  if (!r.ok) msg.textContent = r.error;
+}
+function table(rows, edit) {
+  if (!rows.length) return '<p class="mut">Nothing logged yet today. Click a +ml button!</p>';
+  return `<table>${rows.map(l => `<tr><td>${time(l.ts)}</td><td>Water</td><td>${l.amount} ml</td><td class="mut">${l.source}</td><td style="text-align:right">
+    <button class="b g" onclick="const v=+prompt('New amount (ml)',${l.amount});v>0&&hb.editLog('${l.id}',v)">Edit</button>
+    <button class="b g" onclick="hb.deleteLog('${l.id}')">Delete</button></td></tr>`).join('')}</table>`;
+}
+function welcome() {
+  return `<div class="card welcome"><h2 style="margin-top:0">Welcome to HydroBuddy 💧</h2><p>Let's set up your little work companion. Pick your interval and work hours in <b>Settings</b>, then test the buddy to see how he'll visit you. HydroBuddy keeps running in the system tray after you close this window.</p>
+    <button class="b g" onclick="tab='Settings';render()">Open settings</button> <button class="b g" onclick="hb.testBuddy()">👋 Test the buddy</button> <button class="b g" onclick="hb.onboarded()">Got it — start reminders</button></div>`;
+}
+refresh(); setInterval(refresh, 30000);
+</script></body></html>

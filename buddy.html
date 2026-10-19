@@ -1,0 +1,198 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Buddy</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:transparent;font-family:"Segoe UI",system-ui,sans-serif;user-select:none}
+  #buddy{position:absolute;left:0;bottom:12px;width:120px;height:170px;transform:translateX(-300px);will-change:transform}
+  #hop{position:absolute;inset:0}
+  #body{position:absolute;left:0;bottom:0;width:120px;height:170px;transform-origin:50% 100%;transform:scale(var(--s,1)) scaleX(var(--f,1))}
+  .drop{position:absolute;left:20px;top:20px;width:80px;height:92px;background:radial-gradient(circle at 35% 35%,#7fd3ff,#2196f3 70%);
+    border-radius:50% 50% 48% 48%/62% 62% 38% 38%;filter:hue-rotate(var(--hue,0deg));box-shadow:inset -6px -8px 12px #0d6fc455}
+  .drop:before{content:"";position:absolute;left:30px;top:-18px;width:20px;height:28px;background:inherit;border-radius:50% 50% 0 0;clip-path:polygon(50% 0,100% 100%,0 100%)}
+  .eye{position:absolute;top:44px;width:12px;height:16px;background:#12304a;border-radius:50%;transition:.15s}.eye:after{content:"";position:absolute;left:3px;top:2px;width:4px;height:4px;background:#fff;border-radius:50%}
+  .eye.l{left:20px}.eye.r{left:48px}
+  .mouth{position:absolute;left:30px;top:66px;width:20px;height:10px;border-bottom:4px solid #12304a;border-radius:0 0 20px 20px;transition:.2s}
+  .cheek{position:absolute;top:62px;width:9px;height:6px;background:#ff8fa3;border-radius:50%;opacity:.7}.cheek.l{left:10px}.cheek.r{left:61px}
+  .arm,.leg{position:absolute;background:#1e88e5;border-radius:8px;filter:hue-rotate(var(--hue,0deg));transform-origin:50% 0}
+  .arm{top:78px;width:10px;height:36px}.arm.l{left:10px;transform:rotate(15deg)}.arm.r{right:10px;transform:rotate(-15deg)}
+  .leg{top:108px;width:12px;height:42px}.leg.l{left:38px}.leg.r{left:70px}
+  #body.idle .drop{animation:breathe 2.4s ease-in-out infinite}
+  #body.idle .eye{animation:blink 3.5s infinite}
+  #body.run .leg.l{animation:swing .22s infinite alternate}#body.run .leg.r{animation:swing .22s infinite alternate-reverse}
+  #body.run .arm.l{animation:swing .22s infinite alternate-reverse}#body.run .arm.r{animation:swing .22s infinite alternate}
+  #body.run .drop{animation:bob .22s infinite alternate}
+  #body.happy .mouth{height:14px;width:26px;left:27px;background:#12304a;border:0;border-radius:0 0 26px 26px}
+  #body.happy .eye{height:5px;margin-top:6px;border-radius:6px 6px 0 0}
+  #body.sad .mouth{border-bottom:0;border-top:4px solid #12304a;border-radius:20px 20px 0 0;top:72px}
+  #body.sad .eye{transform:translateY(5px) scaleY(.7)}#body.sad .drop{transform:rotate(-6deg) translateY(6px)}
+  #body.sad .arm.l{transform:rotate(5deg)}#body.sad .arm.r{transform:rotate(-5deg)}
+  #body.pose .arm.l{transform:rotate(60deg)}#body.pose .arm.r{transform:rotate(-60deg)}
+  #body.pose .mouth{height:18px;width:22px;left:29px;background:#12304a;border:0;border-radius:0 0 22px 22px}
+  #body.pose .leg.l{transform:rotate(14deg)}#body.pose .leg.r{transform:rotate(-14deg)}
+  #bottle{position:absolute;left:44px;top:-6px;width:30px;height:62px;display:none;filter:drop-shadow(0 0 8px #fff8)}
+  #bottle:before{content:"";position:absolute;left:9px;top:0;width:12px;height:12px;background:#ffb300;border-radius:3px 3px 0 0}
+  #bottle:after{content:"";position:absolute;left:3px;top:10px;width:24px;height:50px;background:linear-gradient(90deg,#bfe9ff,#5bc0f8 60%,#2b9be6);border-radius:10px 10px 8px 8px;border:2px solid #fff}
+  #body.lift #bottle{display:block;animation:shine .5s infinite alternate}
+  #body.lift .arm.l{transform:rotate(155deg) translate(6px,-4px)}#body.lift .arm.r{transform:rotate(-155deg) translate(-6px,-4px)}
+  #body.lift .mouth{height:18px;width:24px;left:28px;background:#12304a;border:0;border-radius:0 0 24px 24px}
+  #body.lift .drop{animation:bob .3s infinite alternate}
+  @keyframes shine{to{filter:drop-shadow(0 0 16px #ffe27a)}}
+  #body.wave .arm.r{animation:wave .3s infinite alternate;transform-origin:50% 0}
+  #body.wave .mouth{height:12px;width:24px;left:28px;background:#12304a;border:0;border-radius:0 0 24px 24px}
+  @keyframes breathe{50%{transform:scale(1.03,.98)}}@keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+  @keyframes swing{from{transform:rotate(-35deg)}to{transform:rotate(35deg)}}@keyframes bob{to{transform:translateY(-6px)}}
+  @keyframes wave{from{transform:rotate(-150deg)}to{transform:rotate(-100deg)}}
+  #speech{position:absolute;left:70px;bottom:200px;width:max-content;max-width:260px;background:#fff;color:#12304a;padding:10px 14px;border-radius:16px;
+    font-size:15px;font-weight:600;box-shadow:0 4px 16px #0003;opacity:0;transform:scale(.8);transform-origin:0 100%;transition:.18s}
+  #speech.on{opacity:1;transform:scale(1)}
+  #speech:after{content:"";position:absolute;left:14px;bottom:-9px;border:9px solid transparent;border-top-color:#fff;border-bottom:0}
+  #shout{position:absolute;left:-30px;top:-100px;font:900 40px/1 Impact,"Arial Black",sans-serif;color:#fff;-webkit-text-stroke:2px #1565c0;text-shadow:3px 3px 0 #1565c0;
+    opacity:0;transform:scale(.3) rotate(-8deg);transition:.2s cubic-bezier(.3,1.8,.5,1);white-space:nowrap}
+  #shout.on{opacity:1;transform:scale(1) rotate(-6deg)}
+  #trail{position:absolute;right:90px;top:70px;width:90px;height:50px;background:linear-gradient(90deg,transparent,#7fd3ff88);border-radius:30px;opacity:0;transition:.2s}
+  #trail.on{opacity:1}
+  #panel{position:absolute;left:190px;bottom:60px;display:none;gap:8px;align-items:center;flex-wrap:wrap;width:340px;background:#ffffffee;padding:10px;border-radius:14px;box-shadow:0 4px 16px #0003}
+  #panel.on{display:flex}
+  button{font:600 14px "Segoe UI",system-ui;border:0;border-radius:10px;padding:9px 14px;cursor:pointer;transition:.1s}
+  button:disabled{opacity:.5;cursor:default}
+  #yes{background:#1e88e5;color:#fff}#later{background:#e3eef8;color:#12304a}#x{background:none;color:#789;padding:6px 8px;margin-left:auto}
+  .chips{width:100%;display:flex;gap:6px;font-size:12px;color:#456;align-items:center}
+  .chip{background:#eef5fb;padding:4px 9px;border-radius:99px;color:#12304a}.chip.sel{background:#1e88e5;color:#fff}
+
+  .torso,.shorts,.btl,#bottleTop{display:none}
+  .arm,.leg{transition:transform .35s,height .35s}
+  .btl{position:absolute;width:14px;height:36px;background:linear-gradient(90deg,#aee4ff,#4fc3f7);border-radius:6px 6px 4px 4px;border:1.5px solid #fff;box-shadow:0 0 0 1px #2196f366}
+  .btl:before{content:"";position:absolute;left:2px;top:-9px;width:8px;height:8px;background:#fff;border-radius:3px 3px 0 0;box-shadow:0 0 0 1px #2196f366}
+  #body.striker .torso{display:block;position:absolute;left:28px;top:66px;width:64px;height:48px;border-radius:12px 12px 6px 6px;background:repeating-linear-gradient(90deg,#75aadb 0 9px,#fff 9px 18px);box-shadow:inset 0 -6px 8px #0002}
+  #body.striker .shorts{display:block;position:absolute;left:30px;top:108px;width:60px;height:20px;border-radius:4px 4px 10px 10px;background:#1b2a5c}
+  #body.striker .drop{width:80px;height:84px;left:20px;top:2px;scale:.72;transform-origin:50% 0;background:#f2c7a0;border-radius:50%;filter:none;box-shadow:none}
+  #body.striker .drop:before{left:0;top:-2px;width:80px;height:34px;border-radius:50% 50% 0 0;clip-path:none;background:#5b3b24}
+  #body.striker .arm{top:74px;width:12px;height:38px;background:linear-gradient(#75aadb 0 30%,#f2c7a0 30%);filter:none}
+  #body.striker .arm.l{left:14px}#body.striker .arm.r{right:14px}
+  #body.striker .leg{top:120px;height:40px;filter:none;background:linear-gradient(#f2c7a0 0 35%,#75aadb 35% 70%,#fff 70%)}
+  #body.striker .arm.r .btl{display:block;left:-1px;bottom:-26px;transform:rotate(8deg)}
+  #bottleTop{left:50px;top:-34px;width:20px;height:50px}
+  #body.lift #bottleTop{display:block;animation:glint .5s infinite alternate}
+  #body.lift .arm.r .btl{display:none}
+  #body.lift .arm.l{height:90px;transform:rotate(206deg)}#body.lift .arm.r{height:90px;transform:rotate(153deg)}
+  #body.lift .mouth{height:18px;width:22px;left:29px;background:#12304a;border:0;border-radius:0 0 22px 22px}
+  #body.lift .leg.l{transform:rotate(8deg)}#body.lift .leg.r{transform:rotate(-8deg)}
+  #spriteBox{display:none;position:absolute;left:0;bottom:0;width:120px;justify-content:center;align-items:flex-end}
+  #sprite{flex:none;max-width:none}
+  #body.custom #spriteBox{display:flex}
+  #body.custom > :not(#spriteBox):not(#trail){display:none !important}
+  #body.custom.idle #sprite{animation:breathe 2.4s ease-in-out infinite;transform-origin:50% 100%}
+  #body.custom.run #sprite{animation:bob .3s infinite alternate}
+  #body.custom.walk #sprite{animation:bob .45s infinite alternate}
+  @keyframes glint{to{filter:drop-shadow(0 0 8px #fff) brightness(1.15)}}
+</style></head><body>
+<div id="buddy"><div id="hop"><div id="body" class="idle">
+  <div class="leg l"></div><div class="leg r"></div><div class="torso"></div><div class="shorts"></div>
+  <div class="arm l"></div><div class="arm r"><span class="btl"></span></div>
+  <div class="drop"><i class="eye l"></i><i class="eye r"></i><i class="cheek l"></i><i class="cheek r"></i><b class="mouth"></b></div>
+  <div class="btl" id="bottleTop"></div><div id="spriteBox"><img id="sprite" alt=""></div><div id="trail"></div></div>
+  <div id="shout">Yaaay!</div></div><div id="speech"></div></div>
+<div id="panel">
+  <button id="yes">I'll take it! 💧</button><button id="later">Remind me later</button><button id="x" title="Dismiss">✕</button>
+  <div class="chips">Amount: <span id="chips"></span></div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const buddy = $('#buddy'), hop = $('#hop'), body = $('#body'), speech = $('#speech'), panel = $('#panel'), shout = $('#shout'), trail = $('#trail');
+let cfg, x = -300, busy = false, amount = 250, timer, ac;
+const STOP = 40, W = innerWidth;
+const sleep = ms => new Promise(r => setTimeout(r, ms / cfg.speed));
+const isStriker = () => cfg.character === 'striker', isCustom = () => cfg.character === 'custom';
+const sprite = $('#sprite');
+// All poses share one scale (set from the idle image) so the character doesn't change size between poses.
+async function loadSprites(c) {
+  c.dims = {};
+  await Promise.all(Object.entries(c.poses).map(async ([k, u]) => { const im = new Image(); im.src = u; try { await im.decode(); } catch {} c.dims[k] = [im.naturalWidth, im.naturalHeight]; }));
+  c.k = 190 / (c.dims.idle[1] || 420);
+}
+function setSprite(key) {
+  const c = cfg.custom, k = c.poses[key] ? key : (key === 'walk' && c.poses.run ? 'run' : 'idle');
+  sprite.src = c.poses[k]; sprite.style.height = c.dims[k][1] * c.k + 'px'; sprite.style.width = c.dims[k][0] * c.k + 'px';
+}
+const SPR = { idle: 'idle', walk: 'walk', run: 'run', sad: 'sad', wave: 'wave', lift: 'celebrate', pose: 'celebrate' };
+const pose = c => {
+  body.className = c + (isCustom() ? ' custom' : isStriker() ? ' striker' : '');
+  if (isCustom()) setSprite(c === 'happy' ? (cfg.custom.poses.happy ? 'happy' : 'celebrate') : (SPR[c] || 'idle'));
+};
+const say = t => { speech.textContent = t || ''; speech.classList.toggle('on', !!t); };
+const flip = f => body.style.setProperty('--f', f);
+function move(to, ms, easing = 'ease-out') {
+  const a = buddy.animate([{ transform: `translateX(${x}px)` }, { transform: `translateX(${to}px)` }], { duration: ms / cfg.speed, easing, fill: 'forwards' });
+  return a.finished.then(() => { x = to; buddy.style.transform = `translateX(${x}px)`; a.cancel(); });
+}
+// --- tiny synthesized sound effects (no audio files needed) ---
+function tone(f1, f2, dur, { type = 'sine', vol = .12, delay = 0, vib = 0 } = {}) {
+  if (!cfg.sound) return; ac = ac || new AudioContext();
+  const t = ac.currentTime + delay, o = ac.createOscillator(), g = ac.createGain();
+  o.type = type; o.frequency.setValueAtTime(f1, t); o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+  if (vib) { const l = ac.createOscillator(), lg = ac.createGain(); l.frequency.value = 9; lg.gain.value = vib; l.connect(lg).connect(o.frequency); l.start(t); l.stop(t + dur); }
+  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+  o.connect(g).connect(ac.destination); o.start(t); o.stop(t + dur);
+}
+const sfx = {
+  pop: () => tone(400, 900, .12), sad: () => { tone(440, 330, .25, { type: 'triangle' }); tone(330, 220, .4, { type: 'triangle', delay: .25 }); },
+  cheer: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, f * 1.01, .45, { delay: i * .13, type: 'triangle' })),
+  jump: () => tone(200, 800, .35, { type: 'square', vol: .05 }),
+  siu: () => cfg.celebrationSound === 'fanfare' ? [523, 659, 784, 1046].forEach((f, i) => tone(f, f * 1.01, .4, { type: 'triangle', delay: i * .16, vol: .15 })) :
+    cfg.celebrationSound === 'chime' ? [660, 880, 1320].forEach((f, i) => tone(f, f, .5, { delay: i * .12 })) :
+    (tone(500, 600, .12, { type: 'sawtooth', vol: .06 }), tone(350, 1100, .7, { type: 'sawtooth', vol: .06, delay: .1, vib: 40 }))
+};
+
+window.hb.onStart(async p => {
+  cfg = p.settings; cfg.custom = p.custom; amount = cfg.defaultAmount;
+  if (cfg.custom) await loadSprites(cfg.custom);
+  body.style.setProperty('--s', cfg.size); body.style.setProperty('--hue', cfg.color + 'deg');
+  buddy.style.setProperty('--hue', cfg.color + 'deg'); document.documentElement.style.setProperty('--hue', cfg.color + 'deg');
+  $('#chips').innerHTML = p.amounts.map(a => `<span class="chip${a === amount ? ' sel' : ''}" data-a="${a}">${a} ml</span>`).join(' ');
+  [...document.querySelectorAll('.chip')].forEach(c => c.onclick = () => { amount = +c.dataset.a; document.querySelectorAll('.chip').forEach(k => k.classList.toggle('sel', k === c)); });
+  // Enter from the left
+  pose(isCustom() ? 'walk' : 'run'); sfx.pop(); await move(STOP, isCustom() ? 1500 : 700, isCustom() ? 'linear' : 'cubic-bezier(.2,.9,.3,1)');
+  pose('idle'); say(p.message); panel.classList.add('on');
+  timer = setTimeout(() => respond('missed'), cfg.timeout * 1000);
+});
+
+async function respond(action) {
+  if (busy) return; busy = true; clearTimeout(timer);
+  document.querySelectorAll('button').forEach(b => b.disabled = true); // no double-triggering
+  window.hb.respond(action, amount);                                    // log immediately; animation is cosmetic
+  panel.classList.remove('on');
+  if (action === 'drink') await celebrate(); else await leaveLeft(action);
+  window.hb.finished();
+}
+async function leaveLeft(action) {
+  if (action === 'snooze') { pose('sad'); say('Okay… I’ll come back later!'); sfx.sad(); await sleep(1100); }
+  else { pose('wave'); say(action === 'missed' ? 'I’ll catch you later!' : 'See you!'); await sleep(700); }
+  say(''); flip(-1); pose(isCustom() ? 'walk' : 'run'); await move(-300, isCustom() ? 1500 : 900, isCustom() ? 'linear' : 'ease-in');
+}
+function confetti() {
+  const cols = ['#75aadb', '#ffffff', '#ffd54f', '#4fc3f7'];
+  for (let i = 0; i < 44; i++) {
+    const c = document.createElement('i');
+    c.style.cssText = `position:absolute;width:8px;height:12px;background:${cols[i % 4]};left:${x + 60 + Math.random() * 200 - 100}px;top:${innerHeight - 240}px;pointer-events:none`;
+    document.body.appendChild(c);
+    c.animate([{ transform: 'translate(0,0) rotate(0)', opacity: 1 }, { transform: `translate(${Math.random() * 120 - 60}px,${200 + Math.random() * 60}px) rotate(${Math.random() * 720}deg)`, opacity: 0 }],
+      { duration: (1400 + Math.random() * 700) / cfg.speed, easing: 'ease-in' }).finished.then(() => c.remove());
+  }
+}
+async function celebrate() {
+  pose('happy'); say('Yesss! Let’s go!'); sfx.pop(); await sleep(700); say('');
+  pose('run'); trail.classList.add('on'); await move(Math.min(W * .55, W - 260), 1800, 'cubic-bezier(.4,0,.9,.6)'); // accelerate
+  trail.classList.remove('on'); sfx.jump();
+  if (isCustom()) setSprite(cfg.custom.poses.jump ? 'jump' : 'run');
+  await hop.animate([{ transform: 'translateY(0) rotate(0)' }, { transform: 'translateY(-110px) rotate(180deg)', offset: .5 }, { transform: 'translateY(0) rotate(360deg)' }],
+    { duration: 800 / cfg.speed, easing: 'ease-out' }).finished;
+  if (cfg.celebration === 'bottle') { // champion-style lift: raise the water bottle overhead like a trophy
+    shout.textContent = 'Yaaay! 😉'; pose('lift'); shout.classList.add('on'); sfx.cheer(); await sleep(1600); shout.classList.remove('on');
+  } else { shout.textContent = 'Yaaay!'; const st = isStriker() || isCustom(); pose(st ? 'lift' : 'pose'); shout.textContent = isStriker() ? '¡CAMPEÓN!' : isCustom() ? 'YESSS!' : 'Yaaay!';
+  shout.classList.add('on'); if (st) confetti(); sfx.siu(); await sleep(st ? 1700 : 1100); shout.classList.remove('on'); }
+  pose('wave'); say('Byeee! 👋'); await sleep(900); say('');
+  pose('run'); trail.classList.add('on'); await move(W + 200, 1500, 'ease-in');
+}
+$('#yes').onclick = () => respond('drink'); $('#later').onclick = () => respond('snooze'); $('#x').onclick = () => respond('dismiss');
+// click-through everywhere except the panel
+panel.onmouseenter = () => window.hb.ignoreMouse(false); panel.onmouseleave = () => window.hb.ignoreMouse(true);
+</script></body></html>
